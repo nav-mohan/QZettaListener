@@ -13,11 +13,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),m_ui(new Ui::MainW
     m_ui->setupUi(this);
     m_tcpServer = new QTcpServer();
     m_xmlReader = new QXmlStreamReader();
-    if(m_tcpServer->listen(QHostAddress::Any, 10000))
-        qDebug("LISTENING...");
-
+    m_tcpLoggerConnection = new QTcpSocket(); // connects to 
     connect(m_tcpServer, &QTcpServer::newConnection, this, &MainWindow::newConnection);
-    m_ui->statusBar->showMessage("Server is listening...");
+    connect(m_tcpLoggerConnection, &QTcpSocket::connected, this, &MainWindow::loggerConnected);
+    connect(m_tcpLoggerConnection, &QTcpSocket::disconnected, this, &MainWindow::loggerDisconnected);
 }
 
 MainWindow::~MainWindow()
@@ -244,16 +243,36 @@ void MainWindow::displayMessage(const QString& str)
     m_ui->textBrowser_receivedMessages->append(str);
 }
 
-void MainWindow::on_pushButton_sendMessage_clicked()
-{
-    // qDebug() << m_regexMatches;
-    QString iString = m_ui->lineEdit_message->text();
-    int i = iString.toInt();
-    parseXmlString(i);
-}
-
-void MainWindow::on_pushButton_sendAttachment_clicked()
+void MainWindow::on_pushButton_clearLogs_clicked()
 {
     m_ui->textBrowser_receivedMessages->clear();
+}
 
+void MainWindow::on_pushButton_establishTcpServer_clicked()
+{
+    int portNumber = m_ui->zettaConnectionPortNumberValue->text().toInt();
+    if(m_tcpServer->listen(QHostAddress::Any, portNumber))
+    {
+        qDebug("LISTENING...%d",portNumber);
+        m_ui->statusBar->showMessage(QString("Server is listening on port %1").arg(portNumber));
+    }
+}
+
+void MainWindow::on_pushButton_connectToZettaLogger_clicked()
+{
+    QString ipAddressPort = m_ui->loggerConnectionIpAddressPortValue->text();
+    QString ip = ipAddressPort.split(":").at(0);
+    quint16 port = ipAddressPort.split(":").at(1).toInt();
+    qDebug() << "Connecting to zettaLogger" << ip << port;
+    m_tcpLoggerConnection->connectToHost(ip,port);
+}
+
+void MainWindow::loggerConnected()
+{
+    qDebug() << "LOGGER CONNECTED";
+}
+
+void MainWindow::loggerDisconnected()
+{
+    qDebug() << "LOGGER DISCONNECTED";
 }

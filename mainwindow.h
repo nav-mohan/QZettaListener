@@ -28,12 +28,15 @@ private slots:
     void parseXmlString(int);
     void displayMessage(const QString& str);
     void doRegexMatch();
-    void on_pushButton_sendMessage_clicked();
-    void on_pushButton_sendAttachment_clicked();
+    void on_pushButton_clearLogs_clicked();
+    void on_pushButton_establishTcpServer_clicked();
+    void on_pushButton_connectToZettaLogger_clicked();
     QString generateDefaultTimestamp(){return QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss ap");}
     QString generateDefaultDate(){return QDateTime::currentDateTime().toString("yyyy-MM-dd");}
     QString generateDefaultLogEventID(){return QDateTime::currentDateTime().toString("yyyyMMddhhmmss");}
-
+    void loggerConnected();
+    void loggerDisconnected();
+    
 private:
     Ui::MainWindow *m_ui;
     QTcpServer *m_tcpServer;
@@ -42,4 +45,5 @@ private:
     QByteArray m_buffer;
     QRegularExpression m_regexPattern;
     QVector<QString> m_regexMatches; // pieces from m_buffer that match the regex-pattern
+    QTcpSocket *m_tcpLoggerConnection; //TCP connection to ZettaLogger
 };
