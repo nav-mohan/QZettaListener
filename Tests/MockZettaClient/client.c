@@ -15,14 +15,14 @@ int main(int argc, char *argv[])
     // Create a socket
     int sockfd;
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
+    int server_port = atoi(argv[1]);
     // Connect to the server
     struct sockaddr_in serv_addr;
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     // serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(SERVER_PORT);
+    serv_addr.sin_port = htons(server_port);
     int connect_status = connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
     printf("CONNECTED %d \n",connect_status);
     if(connect_status != 0){
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     }
     FILE* xml_file;
 
-    char *filename = argv[1];
+    char *filename = argv[2];
     xml_file = fopen(filename,"r");
     int bytes_read = 0;
     unsigned char xml_buffer[BUFFER_SIZE];
