@@ -10,6 +10,7 @@
 #include <QSet>
 #include <QAbstractSocket>
 #include <QMainWindow>
+#include <QMessageBox>
 
 namespace Ui {class MainWindow;}
 
@@ -25,8 +26,8 @@ private slots:
     void appendToSocketList(QTcpSocket*);
     void readSocket();
     void deleteSocket();
-    void parseXmlString(int);
-    void displayMessage(const QString& str);
+    QMap<QString,QString> parseXmlString(int i);
+    void appendLog(const QString& str);
     void doRegexMatch();
     void on_pushButton_clearLogs_clicked();
     void on_pushButton_establishTcpServer_clicked();
@@ -36,6 +37,8 @@ private slots:
     QString generateDefaultLogEventID(){return QDateTime::currentDateTime().toString("yyyyMMddhhmmss");}
     void loggerConnected();
     void loggerDisconnected();
+    void loggerErrorOccurred();
+    void sendData(QVector<QMap<QString,QString>> map);
     
 private:
     Ui::MainWindow *m_ui;

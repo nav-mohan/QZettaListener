@@ -13,10 +13,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),m_ui(new Ui::MainW
     m_ui->setupUi(this);
     m_tcpServer = new QTcpServer();
     m_xmlReader = new QXmlStreamReader();
-    m_tcpLoggerConnection = new QTcpSocket(); // connects to 
+    m_tcpLoggerConnection = new QTcpSocket(); // connects to ZettaLogge
     connect(m_tcpServer, &QTcpServer::newConnection, this, &MainWindow::newConnection);
-    connect(m_tcpLoggerConnection, &QTcpSocket::connected, this, &MainWindow::loggerConnected);
-    connect(m_tcpLoggerConnection, &QTcpSocket::disconnected, this, &MainWindow::loggerDisconnected);
+    connect(m_tcpLoggerConnection, &QAbstractSocket::connected, this, &MainWindow::loggerConnected);
+    connect(m_tcpLoggerConnection, &QAbstractSocket::disconnected, this, &MainWindow::loggerDisconnected);
+    connect(m_tcpLoggerConnection, &QAbstractSocket::errorOccurred, this, &MainWindow::loggerErrorOccurred);
+
 }
 
 MainWindow::~MainWindow()
@@ -34,7 +36,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::newConnection()
 {
-    displayMessage(QString("%1 :: New message stream arriving").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")));
+    appendLog("New message arriving");
     while(m_tcpServer->hasPendingConnections())
         appendToSocketList(m_tcpServer->nextPendingConnection());
 }
@@ -60,14 +62,22 @@ void MainWindow::deleteSocket()
     QTcpSocket* socket = reinterpret_cast<QTcpSocket*>(sender());
     QSet<QTcpSocket*>::iterator it = m_connectionSet.find(socket);
     if (it != m_connectionSet.end()){
-        displayMessage(QString("INFO :: A client has just left the room %1").arg(socket->socketDescriptor()));
-        // qDebug() << QString("INFO :: A client has just left the room %1").arg(socket->socketDescriptor());
+        appendLog(QString("Client %1 disconnected").arg(socket->socketDescriptor()));
         m_connectionSet.remove(*it);
     }
     qDebug() << "Deleting " << sender();
     socket->deleteLater();
     doRegexMatch();
     m_buffer.clear();
+    appendLog(QString("Received %1 Logs").arg(m_regexMatches.size()));
+    QVector <QMap<QString,QString>>deliverRecords;
+    for (int i = 0; i < m_regexMatches.count(); i++)
+    {
+        QMap<QString,QString> m = parseXmlString(i);
+        deliverRecords.push_back(m);
+    }
+    m_regexMatches.clear();
+    sendData(deliverRecords);
 }
 
 void MainWindow::doRegexMatch()
@@ -83,13 +93,14 @@ void MainWindow::doRegexMatch()
     }
 }
 
-void MainWindow::parseXmlString(int i)
+QMap<QString,QString> MainWindow::parseXmlString(int i)
 {
+    QMap<QString,QString> map;
+    if(m_regexMatches.isEmpty() || m_regexMatches.count() <= i) return map;
     m_xmlReader->clear();
-    if(m_regexMatches.isEmpty() || m_regexMatches.count() <= i) return;
     QString xmlString = m_regexMatches.at(i);
     m_xmlReader->addData(xmlString);
-    QString LogEventType, LogEventID,AirStarttimeLocal, AirStoptimeLocal, AirDate,
+    QString LogEventType, LogEventID,AirStarttime, AirStoptime, AirDate,
     AssetID, AssetFileName, AssetTypeID, AssetTypeName, 
     ArtistID, ArtistName, AlbumID, AlbumName, Title, Comment,
     ParticipantID, ParticipantName, SponsorID, SponsorName, ProductID, ProductName, 
@@ -124,9 +135,9 @@ void MainWindow::parseXmlString(int i)
             if(m_xmlReader->name() == "LogEvent")
             {
                 LogEventID = m_xmlReader->attributes().value("LogEventID").toString();
-                AirStarttimeLocal = m_xmlReader->attributes().value("AirStarttimeLocal").toString();
-                AirStoptimeLocal = m_xmlReader->attributes().value("AirStoptimeLocal").toString();
-                AirDate = AirStarttimeLocal.mid(0,10);
+                AirStarttime = m_xmlReader->attributes().value("AirStarttime").toString();
+                AirStoptime = m_xmlReader->attributes().value("AirStoptime").toString();
+                AirDate = AirStarttime.mid(0,10);
                 hasAttributeLastStarted = m_xmlReader->attributes().hasAttribute("LastStarted");
                 hasAttributeValidLogEventID = LogEventID.toInt();
             }
@@ -232,15 +243,52 @@ void MainWindow::parseXmlString(int i)
         if (m_xmlReader->hasError()) 
             qDebug() << "ERROR: " << m_xmlReader->errorString();    
     }
-    qDebug() << "\nLogEventType: " << LogEventType << "\nLogEventID: " << LogEventID << "\nAirStarttimeLocal: " << AirStarttimeLocal << "\nAirStoptimeLocal: " << AirStoptimeLocal << "\nAirDate: " << AirDate << "\nAssetID: " << AssetID << "\nAssetFileName: " << AssetFileName << "\nAssetTypeID: " << AssetTypeID << "\nAssetTypeName: " << AssetTypeName << "\nArtistID: " << ArtistID << "\nArtistName: " << ArtistName << "\nAlbumID: " << AlbumID << "\nAlbumName: " << AlbumName << "\nTitle: " << Title << "\nComment: " << Comment << "\nParticipantID: " << ParticipantID << "\nParticipantName: " << ParticipantName << "\nSponsorID: " << SponsorID << "\nSponsorName: " << SponsorName << "\nProductID: " << ProductID << "\nProductName: " << ProductName << "\nRwLocal: " << RwLocal << "\nRwCanCon: " << RwCanCon << "\nRwHit: " << RwHit << "\nRwFemale: " << RwFemale << "\nRwIndigenous: " << RwIndigenous << "\nRwExplicit: " << RwExplicit << "\nRwReleaseDate: " << RwReleaseDate << "\nRwGenre: " << RwGenre;
+    qDebug() << "\nLogEventType: " << LogEventType << "\nLogEventID: " << LogEventID << "\nAirStarttime: " << AirStarttime << "\nAirStoptime: " << AirStoptime << "\nAirDate: " << AirDate << "\nAssetID: " << AssetID << "\nAssetFileName: " << AssetFileName << "\nAssetTypeID: " << AssetTypeID << "\nAssetTypeName: " << AssetTypeName << "\nArtistID: " << ArtistID << "\nArtistName: " << ArtistName << "\nAlbumID: " << AlbumID << "\nAlbumName: " << AlbumName << "\nTitle: " << Title << "\nComment: " << Comment << "\nParticipantID: " << ParticipantID << "\nParticipantName: " << ParticipantName << "\nSponsorID: " << SponsorID << "\nSponsorName: " << SponsorName << "\nProductID: " << ProductID << "\nProductName: " << ProductName << "\nRwLocal: " << RwLocal << "\nRwCanCon: " << RwCanCon << "\nRwHit: " << RwHit << "\nRwFemale: " << RwFemale << "\nRwIndigenous: " << RwIndigenous << "\nRwExplicit: " << RwExplicit << "\nRwReleaseDate: " << RwReleaseDate << "\nRwGenre: " << RwGenre;
     qDebug() << "hasAttributeLastStarted " << hasAttributeLastStarted << " | " << "hasAttributeValidLogEventID " << hasAttributeValidLogEventID << " | " << "hasTagAsset " << hasTagAsset << " | " << "hasTagTask "  << hasTagTask;
+
+    map["LogEventType"] = LogEventType;
+    map["LogEventID"] = LogEventID;
+    map["AirStarttime"] = AirStarttime;
+    map["AirStoptime"] = AirStoptime;
+    map["AirDate"] = AirDate;
+    map["AssetID"] = AssetID;
+    map["AssetFileName"] = AssetFileName;
+    map["AssetTypeID"] = AssetTypeID;
+    map["AssetTypeName "] = AssetTypeName ;
+    map["ArtistID"] = ArtistID;
+    map["ArtistName"] = ArtistName;
+    map["AlbumID"] = AlbumID;
+    map["AlbumName"] = AlbumName;
+    map["Title"] = Title;
+    map["Comment"] = Comment;
+    map["ParticipantID"] = ParticipantID;
+    map["ParticipantName"] = ParticipantName;
+    map["SponsorID"] = SponsorID;
+    map["SponsorName"] = SponsorName;
+    map["ProductID"] = ProductID;
+    map["ProductName"] = ProductName;
+    map["RwLocal"] = RwLocal;
+    map["RwCanCon"] = RwCanCon;
+    map["RwHit"] = RwHit;
+    map["RwFemale"] = RwFemale;
+    map["RwIndigenous"] = RwIndigenous;
+    map["RwExplicit"] = RwExplicit;
+    map["RwReleaseDate"] = RwReleaseDate;
+    map["RwGenre"] = RwGenre;
+
+
+    // on_pushButton_connectToZettaLogger_clicked();
+    return (map);
 }
 
 
 
-void MainWindow::displayMessage(const QString& str)
+void MainWindow::appendLog(const QString& str)
 {
-    m_ui->textBrowser_receivedMessages->append(str);
+    m_ui->textBrowser_receivedMessages->append(QString("%1 ::%2")
+    .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"))
+    .arg(str));
+
 }
 
 void MainWindow::on_pushButton_clearLogs_clicked()
@@ -251,7 +299,8 @@ void MainWindow::on_pushButton_clearLogs_clicked()
 void MainWindow::on_pushButton_establishTcpServer_clicked()
 {
     int portNumber = m_ui->zettaConnectionPortNumberValue->text().toInt();
-    if(m_tcpServer->listen(QHostAddress::Any, portNumber))
+    if(portNumber == 0) portNumber = 10000;
+    if(m_tcpServer->listen(QHostAddress::AnyIPv4, portNumber))
     {
         qDebug("LISTENING...%d",portNumber);
         m_ui->statusBar->showMessage(QString("Server is listening on port %1").arg(portNumber));
@@ -261,18 +310,42 @@ void MainWindow::on_pushButton_establishTcpServer_clicked()
 void MainWindow::on_pushButton_connectToZettaLogger_clicked()
 {
     QString ipAddressPort = m_ui->loggerConnectionIpAddressPortValue->text();
+    if(ipAddressPort == "") ipAddressPort="127.0.0.1:10001";
+    qDebug() << "Connecting to zettaLogger" << ipAddressPort;
     QString ip = ipAddressPort.split(":").at(0);
     quint16 port = ipAddressPort.split(":").at(1).toInt();
-    qDebug() << "Connecting to zettaLogger" << ip << port;
+    if(port == 0) port = 10000;
     m_tcpLoggerConnection->connectToHost(ip,port);
 }
 
 void MainWindow::loggerConnected()
 {
-    qDebug() << "LOGGER CONNECTED";
+    appendLog("Connected to ZettaLogger Server");
 }
 
 void MainWindow::loggerDisconnected()
 {
-    qDebug() << "LOGGER DISCONNECTED";
+    appendLog("Connection to ZettaLogger Server has closed");
 }
+
+void MainWindow::loggerErrorOccurred()
+{
+    appendLog(m_tcpLoggerConnection->errorString());
+}
+
+
+void MainWindow::sendData(QVector<QMap<QString,QString>> map)
+{
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+
+    // Serialize the QVector<QMap<QString,QString>>
+    stream << map;
+    on_pushButton_connectToZettaLogger_clicked();
+    // Send the serialized map over the socket
+    m_tcpLoggerConnection->open(QIODevice::WriteOnly);
+    m_tcpLoggerConnection->write(data);
+    m_tcpLoggerConnection->close();
+
+}
+
