@@ -1,6 +1,13 @@
+# QZettaListener
+* A `Qt` based app for receiving `XML` stream of `LiveMetadata.Send` from `RCS Zetta`.
+* Parses `XML` for audio metadata, serializes data for delivery to `QZettaLogger`
+* Delivers data to `QZettaLogger` over `TCP` or `Shared Memory`.
+
+<img src = "QZettaListener.png" width = 480>
+
 ## NEXT STEPS
-1. Implement UI/UX for writing to ZettaLogger
-2. Implement TCPSocket with ZettaLogger
-3. Implement Shared Memory with ZettaLogger
-4. Put your name and Github info
+* Serialization of data as `unordered_map<string:string>`
+* Use `Boost::Regex` library for `Regular Expression` evaluation.
+* Use `Boost::PropertyTree` library for `XML` parsing.
+* Use `Boost::asio` for `TCP` i/o and `IPC` i/o and `SIGNAL` handling.
  
