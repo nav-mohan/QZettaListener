@@ -21,6 +21,8 @@
           <Sponsor SponsorID="1038" Name="RW Paid Ads" />
           <AssetAttribute AttributeTypeID="10004" AttributeTypeName="Genre" AttributeValueName="RW Promos" />
           <AssetAttribute AttributeTypeID="10003" AttributeTypeName="RW Release Date" AttributeValueName="2022-02-22" />
+          <AssetAttribute AttributeTypeID="10005" AttributeTypeName="Local" AttributeValueName="1" />
+          <AssetAttribute AttributeTypeID="10006" AttributeTypeName="CanCon" AttributeValueName="1" />
           <StationSpecific StationSpecificId="90979" UniversalIdentifier="bfc7ad29-eae0-48c2-b997-645220fd6266" IsActive="true" Station="Radio Western" StationID="1" StationUniversalIdentifier="6d8a0ad7-93f0-4c87-b8e0-ee573f0b973b">
             <Category CategoryID="32" Name="Pm" AssetTypeID="3" CategoryGroup="10 Promos" LongName="Promos" />
           </StationSpecific>
